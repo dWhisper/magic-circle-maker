@@ -4,11 +4,19 @@ Build layered magic circles (summoning seals, wards, transmutation arrays, arcan
 
 **Try it live: https://dwhisper.github.io/magic-circle-maker/**
 
-To run it locally there's no build step and no dependencies. Open `index.html` in a browser, or serve the folder:
+## Development
+
+Written in TypeScript (strict) and built with [Vite](https://vite.dev). Needs Node 20.19 or newer.
 
 ```sh
-python3 -m http.server 8000   # then visit http://localhost:8000
+npm install
+npm run dev        # dev server with hot reload at http://localhost:5173
+npm run build      # type-check, then bundle into dist/
+npm run preview    # serve the production build locally
+npm run typecheck  # type-check only
 ```
+
+Every push to `main` builds the site and deploys it to GitHub Pages via `.github/workflows/deploy.yml`.
 
 ## Features
 
@@ -26,7 +34,7 @@ python3 -m http.server 8000   # then visit http://localhost:8000
   - **GIF** (320–800 px), opaque or transparent
   - **Video:** MP4 (H.264), WebM (VP9), transparent WebM for video editors, or green-screen MP4; 720–2160 px at 30 or 60 fps
   - **Loop length:** *Seamless 12 s / 6 s* round each layer's spin speed so every layer finishes whole turns and the loop never jumps. *Exact* keeps your speeds but can need minutes to loop. Fixed 3/5/10 s loops keep your speeds and may jump.
-  - The encoders ([gifenc](https://github.com/mattdesl/gifenc) 1.0.3 and [Mediabunny](https://mediabunny.dev) 1.65.2) load from jsDelivr on first use, so animated export needs an internet connection and a browser with WebCodecs (current Chrome, Edge, Safari or Firefox)
+  - The encoders ([gifenc](https://github.com/mattdesl/gifenc) and [Mediabunny](https://mediabunny.dev)) are bundled with the app and load only when you export an animation. Video needs a browser with WebCodecs (current Chrome, Edge, Safari or Firefox)
 - **Design files:** save and open `.json`
 - **Share link:** the whole design is encoded in the URL
 
@@ -34,10 +42,16 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 
 | File | Purpose |
 | --- | --- |
-| `js/rng.js` | Seeded PRNG and procedural rune glyph generator |
-| `js/layers.js` | Layer types, editor field schema, SVG renderers |
-| `js/presets.js` | Presets, color themes, randomizer |
-| `js/app.js` | UI, animation, canvas interaction, PNG/SVG export, spellbook, share links |
-| `js/anim-export.js` | Seamless-loop calculation, GIF and video export |
+| `src/main.ts` | Entry point |
+| `src/types.ts` | Shared types: layers, designs, editor fields |
+| `src/rng.ts` | Seeded PRNG and procedural rune glyph generator |
+| `src/layers.ts` | Layer types, defaults, editor field schema, SVG renderers |
+| `src/presets.ts` | Presets, color themes, randomizer |
+| `src/render.ts` | Design → SVG markup (preview and all exports) |
+| `src/design.ts` | New designs; sanitizing designs from share links, files and storage |
+| `src/app.ts` | UI, preview animation, canvas interaction, layer drag-and-drop, PNG/SVG export, spellbook, share links |
+| `src/anim-export.ts` | Seamless-loop calculation, GIF and video export |
+| `src/state.ts`, `src/ui.ts` | App state and small DOM helpers |
+| `src/gifenc.d.ts` | Type declarations for gifenc (it ships none) |
 
 Spellbook entries live in browser `localStorage`. Use **Save .json** to keep a durable copy alongside your manuscript.
