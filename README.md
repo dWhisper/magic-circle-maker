@@ -26,6 +26,7 @@ Every push to `main` runs the tests, builds the site and deploys it to GitHub Pa
 
 - `renderers.test.ts`: the geometry each layer type draws, seeded determinism of runes and sigils, escaping of incantation text, how layer settings reach the SVG, every slider at its limits, and a snapshot of every preset's exact output
 - `loop.test.ts`: symmetry per layer type, exact and rounded seamless loops (including floating-point edge cases), and a check that every preset loops seamlessly with each loop option
+- `share.test.ts`: the share-link sanitizer. Covers wrong types, bad colours, unknown or prototype-named layer types, values outside slider ranges, fractional counts, and links that aren't designs. A fuzz test renders hundreds of junk-filled designs and checks no markup or broken numbers get through. Also checks that presets and random designs pass through unchanged, and that links from the original JavaScript version still load
 
 If you change how something is drawn on purpose, update the preset snapshots with `npx vitest run -u` and review the diff.
 
@@ -59,7 +60,8 @@ If you change how something is drawn on purpose, update the preset snapshots wit
 | `src/layers.ts` | Layer types, defaults, editor field schema, SVG renderers |
 | `src/presets.ts` | Presets, color themes, randomizer |
 | `src/render.ts` | Design → SVG markup (preview and all exports) |
-| `src/design.ts` | New designs; sanitizing designs from share links, files and storage |
+| `src/design.ts` | New designs; sanitizing designs from share links, files and storage (types, colours, slider ranges) |
+| `src/share.ts` | Encoding and decoding share links |
 | `src/app.ts` | UI, preview animation, canvas interaction, layer drag-and-drop, PNG/SVG export, spellbook, share links |
 | `src/loop.ts` | Seamless-loop calculation |
 | `src/anim-export.ts` | GIF and video export |

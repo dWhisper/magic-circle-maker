@@ -1,11 +1,12 @@
 // UI wiring, preview rendering, animation, persistence, image export, spellbook.
-import { baseDesign, normalize } from './design';
+import { DESIGN_FIELDS, baseDesign, normalize } from './design';
 import { COMMON_FIELDS, LAYER_TYPES, TYPES, TYPE_FIELDS, makeLayer, newLayerId, randomSalt, typeDefaults } from './layers';
 import { PRESETS, THEMES, randomDesign } from './presets';
 import { SVGNS, buildSvg } from './render';
 import { fmt, randomSeed } from './rng';
 import { state } from './state';
 import type { Design, DesignTemplate, Field, Layer, LayerType } from './types';
+import { designFromHash, encodeDesign } from './share';
 import { $, download, fileBase, toast } from './ui';
 
 const STORE_KEY = 'mcm.current.v1';
@@ -332,14 +333,6 @@ function renderEditor(): void {
 }
 
 // ---------- Design panel ----------
-const DESIGN_FIELDS: Field<Design>[] = [
-  { key: 'ink', label: 'Ink', type: 'color' },
-  { key: 'bg', label: 'Background', type: 'color' },
-  { key: 'lineWeight', label: 'Line weight', type: 'range', min: 0.25, max: 4, step: 0.05, unit: '×' },
-  { key: 'spinSpeed', label: 'Spin speed', type: 'range', min: 0, max: 5, step: 0.1, unit: '×' },
-  { key: 'tilt', label: 'Ground tilt', type: 'range', min: 0, max: 75, step: 1, unit: '°' },
-];
-
 function renderDesignPanel(): void {
   const d = state.design;
   $<HTMLInputElement>('#seed').value = d.seed;
@@ -549,19 +542,8 @@ function persist(): void {
   }
 }
 
-const b64urlEncode = (str: string): string => {
-  const bytes = new TextEncoder().encode(str);
-  let bin = '';
-  bytes.forEach((b) => (bin += String.fromCharCode(b)));
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-};
-const b64urlDecode = (s: string): string => {
-  const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
-  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
-};
-
 function shareLink(): void {
-  const url = location.href.split('#')[0] + '#d=' + b64urlEncode(JSON.stringify(state.design));
+  const url = location.href.split('#')[0] + '#d=' + encodeDesign(state.design);
   history.replaceState(null, '', url);
   if (navigator.clipboard) {
     navigator.clipboard.writeText(url).then(() => toast('Link copied to clipboard'), () => toast('Link is in the address bar'));
@@ -675,14 +657,13 @@ function refreshAll(): void {
 
 // ---------- Boot ----------
 function loadInitialDesign(): boolean {
-  const m = location.hash.match(/#d=([\w-]+)/);
-  if (m?.[1]) {
-    try {
-      loadDesign(JSON.parse(b64urlDecode(m[1])));
+  if (location.hash) {
+    const shared = designFromHash(location.hash);
+    if (shared) {
+      loadDesign(shared);
       return true;
-    } catch (e) {
-      console.warn('Bad share link', e);
     }
+    console.warn('Ignoring an invalid share link');
   }
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null');

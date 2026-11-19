@@ -49,7 +49,7 @@ export const typeDefaults = (type: LayerType): TypeParams => ({ ...PARAM_DEFAULT
 
 // ---------- Editor field definitions ----------
 export const COMMON_FIELDS: Field<Layer>[] = [
-  { key: 'radius', label: 'Radius', type: 'range', min: 0.01, max: 0.5, step: 0.005 },
+  { key: 'radius', label: 'Radius', type: 'range', min: 0, max: 0.5, step: 0.005 },
   { key: 'width', label: 'Line width', type: 'range', min: 0.25, max: 12, step: 0.25, unit: 'px' },
   { key: 'rotation', label: 'Rotation', type: 'range', min: -180, max: 180, step: 1, unit: '°' },
   { key: 'spin', label: 'Spin', type: 'range', min: -90, max: 90, step: 1, unit: '°/s' },
@@ -76,7 +76,7 @@ export const TYPE_FIELDS: Partial<Record<LayerType, Field<Layer>[]>> = {
     { key: 'fontSize', label: 'Size', type: 'range', min: 8, max: 64, step: 1 },
   ],
   dots: [
-    { key: 'count', label: 'Count', type: 'range', min: 2, max: 120, step: 1 },
+    { key: 'count', label: 'Count', type: 'range', min: 1, max: 120, step: 1 },
     { key: 'size', label: 'Dot size', type: 'range', min: 1, max: 24, step: 0.5 },
   ],
   orbits: [
