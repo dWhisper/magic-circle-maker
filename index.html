@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Magic Circle Maker</title>
+  <meta name="description" content="Layer rings, stars, runes and incantations into magic circles for your stories. Export SVG or PNG.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -50 100 100'%3E%3Cg fill='none' stroke='%23e9c46a' stroke-width='6'%3E%3Ccircle r='44'/%3E%3Cpath d='M0-44L26 36-42-14H42L-26 36Z'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1><span class="sigil">✶</span> Magic Circle Maker</h1>
+    <div class="toolbar">
+      <button id="btn-random" class="btn primary">✦ Randomize</button>
+      <button id="btn-play" class="btn">❚❚ Pause</button>
+      <button id="btn-reset-spin" class="btn ghost" title="Reset spin to starting angles">⟲</button>
+      <button id="btn-share" class="btn ghost">Share link</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <!-- Left: layers -->
+    <aside class="panel" aria-label="Layers">
+      <section>
+        <h2>Layers</h2>
+        <ol id="layer-list" class="layer-list"></ol>
+        <div class="layer-actions">
+          <select id="add-type" aria-label="New layer type"></select>
+          <button class="btn small" data-layer-action="add">+ Add</button>
+        </div>
+        <div class="layer-actions">
+          <button class="btn small ghost" data-layer-action="up" title="Move up">↑</button>
+          <button class="btn small ghost" data-layer-action="down" title="Move down">↓</button>
+          <button class="btn small ghost" data-layer-action="dup">Duplicate</button>
+          <button class="btn small ghost danger" data-layer-action="del">Delete</button>
+        </div>
+      </section>
+      <section>
+        <h2>Selected layer</h2>
+        <div id="layer-editor"></div>
+      </section>
+    </aside>
+
+    <!-- Center: stage -->
+    <section class="stage-wrap">
+      <div id="stage" class="stage" aria-label="Magic circle preview"></div>
+      <p class="hint">Click a ring to select it · drag to rotate · <kbd>Shift</kbd>+drag to resize</p>
+    </section>
+
+    <!-- Right: design, library, export -->
+    <aside class="panel" aria-label="Design">
+      <section>
+        <h2>Presets</h2>
+        <div id="presets" class="chips"></div>
+      </section>
+      <section>
+        <h2>Style</h2>
+        <div id="themes" class="swatches"></div>
+        <div id="design-fields" class="field-grid"></div>
+        <label class="field field-text">
+          <span class="flabel">Seed <small>(same seed = same runes &amp; sigils)</small></span>
+          <span class="seed-row"><input id="seed" type="text" spellcheck="false"><button id="btn-reseed" class="btn small ghost" title="New seed">↻</button></span>
+        </label>
+      </section>
+      <section>
+        <h2>Spellbook</h2>
+        <label class="field field-text"><span class="flabel">Name</span><input id="lib-name" type="text" placeholder="e.g. The Warding of Hollowmere"></label>
+        <label class="field field-text"><span class="flabel">Notes</span><textarea id="lib-notes" rows="2" placeholder="Who casts it, what it costs, which chapter…"></textarea></label>
+        <button id="btn-lib-save" class="btn small">Save to spellbook</button>
+        <div id="library" class="library"></div>
+      </section>
+      <section>
+        <h2>Export image</h2>
+        <div class="export-row">
+          <button id="btn-png" class="btn small export-btn">⬇ PNG</button>
+          <select id="png-size" aria-label="PNG size">
+            <option value="1024">1024 px</option>
+            <option value="2048" selected>2048 px</option>
+            <option value="4096">4096 px</option>
+          </select>
+          <button id="btn-svg" class="btn small export-btn">⬇ SVG</button>
+        </div>
+        <label class="field field-check"><input id="transparent" type="checkbox"><span class="flabel">Transparent PNG / SVG background</span></label>
+        <div class="export-row">
+          <button id="btn-stencil" class="btn small ghost export-btn">Stencil PNG (black on white)</button>
+        </div>
+      </section>
+      <section>
+        <h2>Export animation</h2>
+        <label class="field field-select">
+          <span class="flabel">Loop length</span>
+          <select id="loop-len">
+            <option value="fit:12" selected>Seamless 12 s (rounds spin speeds)</option>
+            <option value="fit:6">Seamless 6 s (rounds spin speeds)</option>
+            <option value="auto">Seamless, exact spin speeds (can be minutes)</option>
+            <option value="3">3 s (may jump)</option>
+            <option value="5">5 s (may jump)</option>
+            <option value="10">10 s (may jump)</option>
+          </select>
+        </label>
+        <p id="loop-info" class="muted loop-info"></p>
+
+        <h3>GIF</h3>
+        <div class="export-row">
+          <button id="btn-gif" class="btn small export-btn">⬇ GIF</button>
+          <select id="gif-size" aria-label="GIF size">
+            <option value="320">320 px</option>
+            <option value="480" selected>480 px</option>
+            <option value="640">640 px</option>
+            <option value="800">800 px</option>
+          </select>
+        </div>
+        <label class="field field-check"><input id="gif-transparent" type="checkbox"><span class="flabel">Transparent GIF</span></label>
+
+        <h3>Video</h3>
+        <div class="field-grid">
+          <label class="field field-select"><span class="flabel">Format</span>
+            <select id="video-mode">
+              <option value="mp4" selected>MP4</option>
+              <option value="webm">WebM</option>
+              <option value="webmAlpha">WebM, transparent (for video editors)</option>
+              <option value="greenscreen">MP4, green screen</option>
+            </select>
+          </label>
+          <label class="field"><span class="flabel">Size</span>
+            <select id="video-size">
+              <option value="720">720 px</option>
+              <option value="1080" selected>1080 px</option>
+              <option value="1440">1440 px</option>
+              <option value="2160">2160 px</option>
+            </select>
+          </label>
+          <label class="field"><span class="flabel">Frame rate</span>
+            <select id="video-fps">
+              <option value="30" selected>30 fps</option>
+              <option value="60">60 fps</option>
+            </select>
+          </label>
+          <label class="field field-select"><span class="flabel">Length</span>
+            <select id="video-length">
+              <option value="0">One loop</option>
+              <option value="10" selected>~10 s (whole loops)</option>
+              <option value="30">~30 s (whole loops)</option>
+            </select>
+          </label>
+        </div>
+        <button id="btn-video" class="btn small export-btn">⬇ Video</button>
+
+        <div id="progress" class="progress" hidden>
+          <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+          <div class="progress-row"><span id="progress-label" class="muted"></span><button id="btn-cancel-export" class="btn small ghost">Cancel</button></div>
+        </div>
+        <p class="muted fine">GIF and video encoders download on first use, so you need an internet connection.</p>
+      </section>
+      <section>
+        <h2>Design file</h2>
+        <div class="export-row">
+          <button id="btn-json" class="btn small ghost">Save .json</button>
+          <label class="btn small ghost file-btn">Open .json<input id="file-json" type="file" accept="application/json,.json" hidden></label>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/rng.js"></script>
+  <script src="js/layers.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/anim-export.js"></script>
+</body>
+</html>
