@@ -1,5 +1,6 @@
 // UI wiring, preview rendering, animation, persistence, image export, spellbook.
 import { DESIGN_FIELDS, baseDesign, normalize } from './design';
+import { MAX_FILE_BYTES, designFromFile, designToFile } from './design-file';
 import { COMMON_FIELDS, LAYER_TYPES, TYPES, TYPE_FIELDS, makeLayer, newLayerId, randomSalt, typeDefaults } from './layers';
 import { PRESETS, THEMES, randomDesign } from './presets';
 import { SVGNS, buildSvg } from './render';
@@ -507,23 +508,33 @@ function exportPng(stencil: boolean): void {
 
 // ---------- Design files ----------
 function exportJson(): void {
-  const data = JSON.stringify({ app: 'magic-circle-maker', version: 1, design: state.design }, null, 2);
-  download(new Blob([data], { type: 'application/json' }), fileBase() + '.json');
+  download(new Blob([designToFile(state.design)], { type: 'application/json' }), fileBase() + '.json');
 }
 
 async function importJson(e: Event): Promise<void> {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
+  input.value = ''; // so choosing the same file again still triggers a change
   if (!file) return;
-  try {
-    const parsed: unknown = JSON.parse(await file.text());
-    const design = typeof parsed === 'object' && parsed !== null && 'design' in parsed ? parsed.design : parsed;
-    loadDesign(design);
-    toast('Design loaded');
-  } catch {
-    toast('Could not read that file');
+  // Check the size before reading, so a huge file is never loaded into memory.
+  if (file.size > MAX_FILE_BYTES) {
+    toast('That file is too large to be a design file.');
+    return;
   }
-  input.value = '';
+  let text: string;
+  try {
+    text = await file.text();
+  } catch {
+    toast('Could not read that file.');
+    return;
+  }
+  const result = designFromFile(text);
+  if (!result.ok) {
+    toast(result.error); // the current design is left untouched
+    return;
+  }
+  loadDesign(result.design);
+  toast('Design loaded');
 }
 
 // ---------- Persistence / share ----------

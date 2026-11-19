@@ -1,0 +1,47 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`saving > keeps a stable format 1`] = `
+"{
+  "app": "magic-circle-maker",
+  "version": 1,
+  "design": {
+    "seed": "seed-1",
+    "ink": "#aabbcc",
+    "bg": "#010203",
+    "transparent": false,
+    "lineWeight": 1,
+    "spinSpeed": 1,
+    "tilt": 0,
+    "layers": [
+      {
+        "id": "L-fixed",
+        "salt": 2,
+        "type": "text",
+        "visible": true,
+        "radius": 0.4,
+        "width": 2.5,
+        "double": false,
+        "dashed": false,
+        "rotation": 0,
+        "spin": 0,
+        "ownColor": false,
+        "color": "#ffffff",
+        "glow": 0,
+        "count": 6,
+        "step": 2,
+        "band": 0.06,
+        "text": "OATH",
+        "script": "runes",
+        "fontSize": 24,
+        "size": 0.05,
+        "inner": 0.6,
+        "order": "earlier",
+        "turns": 3,
+        "branches": 3,
+        "shortArms": true
+      }
+    ]
+  }
+}
+"
+`;
