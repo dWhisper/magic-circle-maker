@@ -2,7 +2,9 @@
 
 Build layered magic circles (summoning seals, wards, transmutation arrays, arcane clocks) for stories, covers, chapter headers, and worldbuilding notes.
 
-No build step and no dependencies. Open `index.html` in a browser, or serve the folder:
+**Try it live: https://dwhisper.github.io/magic-circle-maker/**
+
+To run it locally there's no build step and no dependencies. Open `index.html` in a browser, or serve the folder:
 
 ```sh
 python3 -m http.server 8000   # then visit http://localhost:8000
