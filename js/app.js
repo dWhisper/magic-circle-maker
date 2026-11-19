@@ -109,17 +109,89 @@
     state.design.layers.forEach((l, i) => {
       const li = document.createElement('li');
       li.className = 'layer-item' + (l.id === state.selectedId ? ' selected' : '') + (l.visible ? '' : ' hidden-layer');
+      li.dataset.index = i;
       li.innerHTML = `
+        <span class="grip" title="Drag to reorder" aria-hidden="true">⠿</span>
         <button class="vis" title="Toggle visibility" aria-label="Toggle visibility">${l.visible ? '◉' : '○'}</button>
         <span class="lname">${i + 1}. ${MC.TYPES[l.type].label}</span>
         <span class="lmeta">${l.radius.toFixed(2)}</span>`;
       li.addEventListener('click', (e) => {
+        if (layerDrag.suppressClick) return;
         if (e.target.closest('.vis')) { l.visible = !l.visible; refreshAll(); return; }
         state.selectedId = l.id;
         renderLayerList(); renderEditor(); drawSelection();
       });
+      li.addEventListener('pointerdown', (e) => startLayerDrag(e, li, i));
       list.appendChild(li);
     });
+  }
+
+  // ---------- Drag-and-drop reordering ----------
+  // Mouse/pen: drag anywhere on a row. Touch: drag the grip, so the panel can still scroll.
+  const layerDrag = { active: null, suppressClick: false };
+
+  function startLayerDrag(e, li, from) {
+    if (e.button !== 0 || e.target.closest('.vis')) return;
+    if (e.pointerType === 'touch' && !e.target.closest('.grip')) return;
+    layerDrag.active = { li, from, to: from, startY: e.clientY, moved: false, pointerId: e.pointerId };
+    li.setPointerCapture(e.pointerId);
+    li.addEventListener('pointermove', moveLayerDrag);
+    li.addEventListener('pointerup', endLayerDrag);
+    li.addEventListener('pointercancel', endLayerDrag);
+  }
+
+  function moveLayerDrag(e) {
+    const d = layerDrag.active;
+    if (!d || e.pointerId !== d.pointerId) return;
+    const dy = e.clientY - d.startY;
+    if (!d.moved) {
+      if (Math.abs(dy) < 5) return; // small jitter is still a click
+      d.moved = true;
+      d.li.classList.add('dragging');
+      $('#layer-list').classList.add('is-dragging');
+    }
+    e.preventDefault();
+    d.li.style.transform = `translateY(${dy}px)`;
+
+    // Keep the dragged row visible when the panel scrolls.
+    const panel = d.li.closest('.panel');
+    const pr = panel.getBoundingClientRect();
+    if (e.clientY < pr.top + 40) panel.scrollTop -= 10;
+    else if (e.clientY > pr.bottom - 40) panel.scrollTop += 10;
+
+    // New index (with the dragged row removed) = how many other rows sit above the pointer.
+    const items = [...document.querySelectorAll('#layer-list .layer-item')];
+    const others = items.filter((it) => it !== d.li);
+    d.to = others.filter((it) => {
+      const r = it.getBoundingClientRect();
+      return e.clientY > r.top + r.height / 2;
+    }).length;
+    // Show a line above the row the drop will land before, or below the last row.
+    const changed = d.to !== d.from;
+    others.forEach((it, idx) => {
+      it.classList.toggle('drop-above', changed && idx === d.to);
+      it.classList.toggle('drop-below', changed && d.to === others.length && idx === others.length - 1);
+    });
+  }
+
+  function endLayerDrag(e) {
+    const d = layerDrag.active;
+    if (!d || e.pointerId !== d.pointerId) return;
+    layerDrag.active = null;
+    d.li.removeEventListener('pointermove', moveLayerDrag);
+    d.li.removeEventListener('pointerup', endLayerDrag);
+    d.li.removeEventListener('pointercancel', endLayerDrag);
+    $('#layer-list').classList.remove('is-dragging');
+    if (!d.moved) return;
+    // The click that follows this pointerup shouldn't count as a selection click.
+    layerDrag.suppressClick = true;
+    setTimeout(() => { layerDrag.suppressClick = false; }, 0);
+    const layers = state.design.layers;
+    const [moved] = layers.splice(d.from, 1);
+    if (e.type !== 'pointercancel') layers.splice(d.to, 0, moved);
+    else layers.splice(d.from, 0, moved);
+    state.selectedId = moved.id;
+    refreshAll();
   }
 
   function layerAction(action) {

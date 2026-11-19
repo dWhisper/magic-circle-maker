@@ -19,6 +19,7 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 - **Presets:** 9 starting points; **Randomize** builds a new balanced design
 - **8 color themes** plus custom ink and background colors; global line weight, spin speed, ground tilt
 - **On-canvas editing:** click a ring to select it, drag to rotate, Shift+drag to resize
+- **Drag-and-drop layer order:** drag rows in the layer list (on touch screens, drag the ⠿ grip); the ↑/↓ buttons still work too
 - **Spellbook:** save named circles with notes (who casts it, which chapter) in this browser
 - **Image export:** PNG (1024, 2048 or 4096 px, optional transparent background), SVG (vector, for print), and a black-on-white stencil PNG
 - **Animation export:**
