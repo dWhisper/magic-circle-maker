@@ -14,9 +14,20 @@ npm run dev        # dev server with hot reload at http://localhost:5173
 npm run build      # type-check, then bundle into dist/
 npm run preview    # serve the production build locally
 npm run typecheck  # type-check only
+npm test           # run the test suite once
+npm run test:watch # rerun tests as files change
 ```
 
-Every push to `main` builds the site and deploys it to GitHub Pages via `.github/workflows/deploy.yml`.
+Every push to `main` runs the tests, builds the site and deploys it to GitHub Pages via `.github/workflows/deploy.yml`. A failing test or type error stops the deploy, and the live site stays on the last good version.
+
+### Tests
+
+[Vitest](https://vitest.dev) suites in `tests/`:
+
+- `renderers.test.ts`: the geometry each layer type draws, seeded determinism of runes and sigils, escaping of incantation text, how layer settings reach the SVG, every slider at its limits, and a snapshot of every preset's exact output
+- `loop.test.ts`: symmetry per layer type, exact and rounded seamless loops (including floating-point edge cases), and a check that every preset loops seamlessly with each loop option
+
+If you change how something is drawn on purpose, update the preset snapshots with `npx vitest run -u` and review the diff.
 
 ## Features
 
@@ -50,7 +61,8 @@ Every push to `main` builds the site and deploys it to GitHub Pages via `.github
 | `src/render.ts` | Design → SVG markup (preview and all exports) |
 | `src/design.ts` | New designs; sanitizing designs from share links, files and storage |
 | `src/app.ts` | UI, preview animation, canvas interaction, layer drag-and-drop, PNG/SVG export, spellbook, share links |
-| `src/anim-export.ts` | Seamless-loop calculation, GIF and video export |
+| `src/loop.ts` | Seamless-loop calculation |
+| `src/anim-export.ts` | GIF and video export |
 | `src/state.ts`, `src/ui.ts` | App state and small DOM helpers |
 | `src/gifenc.d.ts` | Type declarations for gifenc (it ships none) |
 

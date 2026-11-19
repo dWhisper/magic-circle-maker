@@ -25,6 +25,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm test # a failing test stops the deploy
       - run: npm run build # type-checks, then bundles into dist/
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

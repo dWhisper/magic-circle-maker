@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   // Relative asset URLs so the build works under /magic-circle-maker/ on GitHub Pages.
@@ -8,5 +8,9 @@ export default defineConfig({
     // The Mediabunny video encoder (~730 kB) is its own lazily loaded chunk,
     // fetched only when someone exports a video, so it doesn't slow page load.
     chunkSizeWarningLimit: 800,
+  },
+  test: {
+    include: ['tests/**/*.test.ts'],
+    environment: 'node',
   },
 });
