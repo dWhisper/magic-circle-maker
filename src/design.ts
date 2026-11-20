@@ -1,5 +1,6 @@
 // Creating designs and sanitizing ones that arrive from share links, files or storage.
 import { COMMON_FIELDS, TYPE_FIELDS, isLayerType, makeLayer, typeDefaults } from './layers';
+import { EMBLEMS, GLYPH_SETS, SCRIPTS } from './glyphs';
 import { randomSeed } from './rng';
 import type { Design, Field, Layer, LayerType, TypeParams } from './types';
 
@@ -27,7 +28,13 @@ export const DESIGN_FIELDS: Field<Design>[] = [
 
 const COLOR_KEYS = new Set(['ink', 'bg', 'color']);
 const COLOR_RE = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-const ENUMS: Record<string, readonly string[]> = { script: ['latin', 'runes'], order: ['earlier', 'later'] };
+/** String settings that must be one of a fixed list. */
+const ENUMS: Record<string, { has(v: string): boolean }> = {
+  script: new Set<string>(SCRIPTS),
+  order: new Set(['earlier', 'later']),
+  glyphs: new Set<string>(GLYPH_SETS),
+  icon: EMBLEMS,
+};
 /** Settings the renderers use as loop counts or array steps. */
 const INTEGER_KEYS = new Set(['count', 'step', 'branches']);
 const MAX_TEXT = 500;
@@ -69,7 +76,7 @@ function cleanValue(key: string, fallback: unknown, v: unknown, bounds: Map<stri
     if (typeof v !== 'string') return fallback;
     if (COLOR_KEYS.has(key)) return COLOR_RE.test(v) ? v : fallback;
     const allowed = ENUMS[key];
-    if (allowed) return allowed.includes(v) ? v : fallback;
+    if (allowed) return allowed.has(v) ? v : fallback;
     return v.slice(0, MAX_TEXT);
   }
   return fallback;

@@ -31,3 +31,7 @@ export function toast(msg: string): void {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
+
+/** Escape text for use inside HTML markup or a quoted attribute. */
+export const escHtml = (s: string): string =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);

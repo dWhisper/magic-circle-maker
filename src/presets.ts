@@ -1,7 +1,7 @@
 // Built-in presets, color themes, and the balanced randomizer.
 import { makeLayer as L } from './layers';
 import { rng } from './rng';
-import type { DesignTemplate, Layer } from './types';
+import type { DesignTemplate, GlyphSet, Layer, Script } from './types';
 
 export const THEMES: Record<string, { ink: string; bg: string }> = {
   'Gilded night':   { ink: '#e9c46a', bg: '#0e0b16' },
@@ -116,6 +116,31 @@ export const PRESETS: Record<string, () => DesignTemplate> = {
       L('orbits', { radius: 0.0, count: 1, size: 0.1, width: 2, double: true }),
     ],
   }),
+  'Runestone ward': () => ({
+    theme: 'Ink on vellum',
+    layers: [
+      L('ring', { radius: 0.48, width: 3, double: true }),
+      L('runes', { radius: 0.455, glyphs: 'elder', count: 24, band: 0.07, spin: 3 }),
+      L('ring', { radius: 0.37, width: 2 }),
+      L('text', { radius: 0.335, script: 'futhorc', text: 'WARD THIS HALL FROM ALL HARM', fontSize: 26, spin: -2 }),
+      L('ring', { radius: 0.3, width: 1.5 }),
+      L('star', { radius: 0.3, count: 8, step: 3, width: 2 }),
+      L('ring', { radius: 0.17, width: 2, double: true }),
+      L('emblem', { radius: 0.1, icon: 'ᛉ', glow: 0.15 }),
+    ],
+  }),
+  'Zodiac wheel': () => ({
+    theme: 'Gilded night',
+    layers: [
+      L('ring', { radius: 0.48, width: 3 }),
+      L('runes', { radius: 0.465, glyphs: 'zodiac', count: 12, band: 0.085, spin: 2 }),
+      L('ring', { radius: 0.37, width: 1.5 }),
+      L('spokes', { radius: 0.37, count: 12, inner: 0.55, width: 1 }),
+      L('star', { radius: 0.29, count: 12, step: 5, width: 1.5, glow: 0.3, spin: -3 }),
+      L('ring', { radius: 0.19, width: 2 }),
+      L('emblem', { radius: 0.13, icon: 'sun', spin: -6, glow: 0.25 }),
+    ],
+  }),
   'Sci-fi HUD': () => ({
     theme: 'Spectral cyan',
     layers: [
@@ -132,8 +157,18 @@ export const PRESETS: Record<string, () => DesignTemplate> = {
 };
 
 // Balanced random design: work inward from the edge, picking a band per step.
+// Glyph choices draw from their own generator, so adding them didn't change
+// any other part of the design a given seed produces.
+const RANDOM_GLYPHS: readonly GlyphSet[] = [
+  'seeded', 'seeded', 'seeded', 'seeded', 'elder', 'elder', 'futhorc', 'younger', 'medieval', 'zodiac', 'arcane', 'elements',
+];
+const RANDOM_SCRIPTS: readonly Script[] = ['runes', 'runes', 'elder', 'futhorc', 'younger'];
+const RANDOM_EMBLEMS = ['sun', 'moon-sun', 'ankh', 'circle-of-circles', 'aura', 'eyeball', 'hand-emblem',
+  'crystal-ball', 'trefoil-lily', 'radial-balance', 'fire-symbol', 'snowflake', 'ᛟ', 'ᛉ', 'ᛞ', 'ᛝ'] as const;
+
 export function randomDesign(seed: string): DesignTemplate {
   const r = rng('design:' + seed);
+  const g = rng('glyph-choice:' + seed);
   const layers: Layer[] = [];
   let rad = r.range(0.46, 0.49);
   layers.push(L('ring', { radius: rad, width: r.range(2, 3.5), double: r.chance(0.6) }));
@@ -146,11 +181,12 @@ export function randomDesign(seed: string): DesignTemplate {
     rad -= 0.015;
     if (kind === 'runes') {
       const band = r.range(0.05, 0.075);
-      layers.push(L('runes', { radius: rad, band, count: r.int(16, 36), spin: spinDir() }));
+      layers.push(L('runes', { radius: rad, band, count: r.int(16, 36), spin: spinDir(), glyphs: g.pick(RANDOM_GLYPHS) }));
       rad -= band + 0.01;
     } else if (kind === 'text') {
       const fs = r.int(18, 24);
-      layers.push(L('text', { radius: rad - fs * 0.0006, fontSize: fs, script: r.pick(['latin', 'runes']), spin: spinDir() }));
+      const script = r.pick(['latin', 'runes'] as const) === 'latin' ? 'latin' : g.pick(RANDOM_SCRIPTS);
+      layers.push(L('text', { radius: rad - fs * 0.0006, fontSize: fs, script, spin: spinDir() }));
       rad -= fs * 0.0016 + 0.01;
     } else if (kind === 'dots') {
       layers.push(L('dots', { radius: rad, count: r.int(8, 48), size: r.range(2, 5) }));
@@ -187,7 +223,9 @@ export function randomDesign(seed: string): DesignTemplate {
     star: { count: n, step: 2, width: 1.5 },
     dots: { count: n, size: 4 },
   };
-  layers.push(L(core, { radius: inner * 0.82, spin: spinDir(), ...coreProps[core] }));
+  const spin = spinDir();
+  if (g.chance(0.2)) layers.push(L('emblem', { radius: inner * 0.62, spin, icon: g.pick(RANDOM_EMBLEMS), glow: 0.15 }));
+  else layers.push(L(core, { radius: inner * 0.82, spin, ...coreProps[core] }));
 
   return { theme: r.pick(Object.keys(THEMES)), layers };
 }

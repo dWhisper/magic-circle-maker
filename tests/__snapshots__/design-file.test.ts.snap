@@ -30,6 +30,7 @@ exports[`saving > keeps a stable format 1`] = `
         "count": 6,
         "step": 2,
         "band": 0.06,
+        "glyphs": "seeded",
         "text": "OATH",
         "script": "runes",
         "fontSize": 24,
@@ -38,7 +39,8 @@ exports[`saving > keeps a stable format 1`] = `
         "order": "earlier",
         "turns": 3,
         "branches": 3,
-        "shortArms": true
+        "shortArms": true,
+        "icon": "sun"
       }
     ]
   }

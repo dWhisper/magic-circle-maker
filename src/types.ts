@@ -1,8 +1,10 @@
+import type { GlyphSet, Script } from './glyphs';
+
+export type { GlyphSet, Script } from './glyphs';
+
 export type LayerType =
   | 'ring' | 'polygon' | 'star' | 'runes' | 'text' | 'dots' | 'orbits'
-  | 'spokes' | 'trigrams' | 'phases' | 'arms' | 'spiral' | 'sigil' | 'yinyang';
-
-export type Script = 'latin' | 'runes';
+  | 'spokes' | 'trigrams' | 'phases' | 'arms' | 'spiral' | 'sigil' | 'yinyang' | 'emblem';
 export type TrigramOrder = 'earlier' | 'later';
 
 /** Settings every layer has, whatever its type. */
@@ -24,6 +26,8 @@ export interface TypeParams {
   count: number;
   step: number;
   band: number;
+  /** Rune ring: which glyphs to draw. */
+  glyphs: GlyphSet;
   text: string;
   script: Script;
   fontSize: number;
@@ -33,6 +37,8 @@ export interface TypeParams {
   turns: number;
   branches: number;
   shortArms: boolean;
+  /** Emblem: a symbol name or a rune character. */
+  icon: string;
 }
 
 export interface Layer extends CommonProps, TypeParams {
@@ -100,7 +106,20 @@ export interface TextField<T> extends FieldBase {
 export interface SelectField<T> extends FieldBase {
   type: 'select';
   key: KeysOfType<T, string>;
-  options: ReadonlyArray<readonly [value: string, label: string]>;
+  /** Plain options, or labelled groups of options (shown as <optgroup>s). */
+  options: ReadonlyArray<SelectOption | SelectGroup>;
+}
+export type SelectOption = readonly [value: string, label: string];
+export interface SelectGroup {
+  label: string;
+  options: ReadonlyArray<SelectOption>;
 }
 
-export type Field<T> = RangeField<T> | CheckField<T> | ColorField<T> | TextField<T> | SelectField<T>;
+/** A visual grid of glyphs (runes or symbols), browsed one group at a time. */
+export interface PickerField<T> extends FieldBase {
+  type: 'picker';
+  key: KeysOfType<T, string>;
+  groups: ReadonlyArray<SelectGroup>;
+}
+
+export type Field<T> = RangeField<T> | CheckField<T> | ColorField<T> | TextField<T> | SelectField<T> | PickerField<T>;

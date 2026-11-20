@@ -1,5 +1,9 @@
 // Layer types: defaults, editor fields, and SVG renderers.
 // Coordinates: viewBox -500..500, so radius 0.5 touches the edge.
+import {
+  EMBLEM_OPTIONS, GLYPH_SETS, RUNE_SEPARATOR, SCRIPTS, glyphOutline, glyphSetItems, glyphSetLabel,
+  isOrderedSet, isRuneAlphabet, scriptLabel, transliterate,
+} from './glyphs';
 import { fmt as f, glyph, rng } from './rng';
 import type { CommonProps, Field, Layer, LayerType, Renderer, TypeParams } from './types';
 
@@ -27,6 +31,7 @@ export const TYPES: Record<LayerType, { label: string; defaults: Partial<TypePar
   spiral:   { label: 'Spiral',         defaults: { turns: 3, inner: 0.1 } },
   sigil:    { label: 'Sigil lines',    defaults: { count: 7 } },
   yinyang:  { label: 'Yin-yang',       defaults: {} },
+  emblem:   { label: 'Emblem',         defaults: { icon: 'sun' } },
 };
 
 export const LAYER_TYPES = Object.keys(TYPES) as LayerType[];
@@ -40,8 +45,8 @@ const BASE: CommonProps = {
 
 /** Fallbacks for every type parameter; each type's own defaults override these. */
 const PARAM_DEFAULTS: TypeParams = {
-  count: 6, step: 2, band: 0.06, text: 'BY EMBER AND OATH, BE BOUND', script: 'latin',
-  fontSize: 24, size: 0.05, inner: 0.6, order: 'earlier', turns: 3, branches: 3, shortArms: true,
+  count: 6, step: 2, band: 0.06, glyphs: 'seeded', text: 'BY EMBER AND OATH, BE BOUND', script: 'latin',
+  fontSize: 24, size: 0.05, inner: 0.6, order: 'earlier', turns: 3, branches: 3, shortArms: true, icon: 'sun',
 };
 
 /** Default type parameters for a given type. */
@@ -67,12 +72,13 @@ export const TYPE_FIELDS: Partial<Record<LayerType, Field<Layer>[]>> = {
     { key: 'step', label: 'Step', type: 'range', min: 2, max: 11, step: 1 },
   ],
   runes: [
-    { key: 'count', label: 'Glyphs', type: 'range', min: 4, max: 72, step: 1 },
+    { key: 'glyphs', label: 'Glyphs', type: 'select', options: GLYPH_SETS.map((g) => [g, glyphSetLabel(g)] as const) },
+    { key: 'count', label: 'Count', type: 'range', min: 4, max: 72, step: 1 },
     { key: 'band', label: 'Band height', type: 'range', min: 0.02, max: 0.15, step: 0.005 },
   ],
   text: [
     { key: 'text', label: 'Incantation', type: 'textarea' },
-    { key: 'script', label: 'Script', type: 'select', options: [['latin', 'Latin letters'], ['runes', 'Seeded rune alphabet']] },
+    { key: 'script', label: 'Script', type: 'select', options: SCRIPTS.map((sc) => [sc, scriptLabel(sc)] as const) },
     { key: 'fontSize', label: 'Size', type: 'range', min: 8, max: 64, step: 1 },
   ],
   dots: [
@@ -105,6 +111,7 @@ export const TYPE_FIELDS: Partial<Record<LayerType, Field<Layer>[]>> = {
     { key: 'inner', label: 'Inner start', type: 'range', min: 0, max: 0.9, step: 0.01 },
   ],
   sigil: [{ key: 'count', label: 'Nodes', type: 'range', min: 3, max: 14, step: 1 }],
+  emblem: [{ key: 'icon', label: 'Symbol', type: 'picker', groups: EMBLEM_OPTIONS }],
 };
 
 let counter = 0;
@@ -147,6 +154,40 @@ function glyphsAround(keys: Array<string | null>, rMid: number, s: number, sw: n
     }
   });
   return out + '</g>';
+}
+
+/** Scale factors need more precision than coordinates: a glyph may be drawn at 0.005×. */
+const fs = (n: number): number => Math.round(n * 1e5) / 1e5;
+
+/** A filled glyph outline (rune or symbol) centred at x,y, rotated, with half-size `half`. */
+function outlineAt(key: string, x: number, y: number, rotDeg: number, half: number): string {
+  const d = glyphOutline(key);
+  if (!d) return '';
+  const rot = rotDeg ? ` rotate(${f(rotDeg)})` : '';
+  return `<path transform="translate(${f(x)} ${f(y)})${rot} scale(${fs(half / 1000)})" d="${d}"/>`;
+}
+
+/** Filled glyphs evenly spaced around a circle, upright towards the outside. */
+function outlinesAround(keys: readonly string[], rMid: number, half: number): string {
+  const n = keys.length;
+  let out = '<g fill="currentColor" stroke="none">';
+  keys.forEach((key, i) => {
+    const a = (i / n) * TAU;
+    const [x, y] = polar(rMid, a);
+    out += outlineAt(key, x, y, deg(a), half);
+  });
+  return out + '</g>';
+}
+
+/** Seeded order of a set's glyphs, so every glyph appears before any repeats. */
+function shuffled<T>(items: readonly T[], key: string): T[] {
+  const r = rng(key);
+  const a = [...items];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = r.int(0, i);
+    [a[i], a[j]] = [a[j] as T, a[i] as T];
+  }
+  return a;
 }
 
 // Trigram lines listed bottom (inner) to top (outer); 1 = solid, 0 = broken.
@@ -206,15 +247,30 @@ export const renderers: Record<LayerType, Renderer> = {
     const band = l.band * S;
     let out = circle(r) + circle(r - band);
     if (l.double) out += circle(r + c.w * 3.2) + circle(r - band - c.w * 3.2);
-    const keys: string[] = [];
-    for (let i = 0; i < l.count; i++) keys.push(`${c.seed}:${l.salt}:${i}`);
-    out += glyphsAround(keys, r - band / 2, band * 0.3, Math.max(0.5, c.w * 0.75));
-    return out;
+    if (l.glyphs === 'seeded') {
+      const keys: string[] = [];
+      for (let i = 0; i < l.count; i++) keys.push(`${c.seed}:${l.salt}:${i}`);
+      return out + glyphsAround(keys, r - band / 2, band * 0.3, Math.max(0.5, c.w * 0.75));
+    }
+    // Alphabets and the zodiac run in order; other symbol sets in a seeded order.
+    const set = glyphSetItems(l.glyphs);
+    const order = isOrderedSet(l.glyphs) ? set : shuffled(set, `set:${c.seed}:${l.salt}`);
+    const keys = Array.from({ length: l.count }, (_, i) => order[i % order.length] as string);
+    // Runes are taller than wide; symbols are drawn a little larger to fill the band.
+    const half = band * (isRuneAlphabet(l.glyphs) ? 0.33 : 0.38);
+    return out + outlinesAround(keys, r - band / 2, half);
   },
 
   text: (l, c) => {
     const r = l.radius * S;
     const raw = (l.text || '').trim() || '·';
+    if (isRuneAlphabet(l.script)) {
+      // Real runes, written phonetically from the Latin text, words split by ᛫.
+      const keys = transliterate(raw, l.script).map((k) => k ?? RUNE_SEPARATOR);
+      keys.push(RUNE_SEPARATOR);
+      const half = l.fontSize * 0.5;
+      return outlinesAround(keys, r, half) + (l.double ? circle(r + half * 1.8) + circle(r - half * 1.8) : '');
+    }
     if (l.script === 'runes') {
       // Each letter maps to a glyph from a per-seed alphabet, so the same word
       // always reads the same way in a given design: a usable constructed script.
@@ -361,4 +417,8 @@ export const renderers: Record<LayerType, Renderer> = {
       `<circle cy="${f(-h)}" r="${f(dot)}" fill="${c.bg}" stroke="none"/>` +
       `<circle cy="${f(h)}" r="${f(dot)}" fill="currentColor" stroke="none"/>`;
   },
+
+  emblem: (l) =>
+    `<g fill="currentColor" stroke="none">${outlineAt(l.icon, 0, 0, 0, l.radius * S)}</g>` +
+    (l.double ? circle(l.radius * S * 1.12) : ''),
 };

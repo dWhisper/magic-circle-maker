@@ -6,9 +6,10 @@ import { PRESETS, THEMES, randomDesign } from './presets';
 import { SVGNS, buildSvg } from './render';
 import { fmt, randomSeed } from './rng';
 import { state } from './state';
-import type { Design, DesignTemplate, Field, Layer, LayerType } from './types';
+import { glyphOutline } from './glyphs';
+import type { Design, DesignTemplate, Field, Layer, LayerType, SelectGroup, SelectOption } from './types';
 import { designFromHash, encodeDesign } from './share';
-import { $, download, fileBase, toast } from './ui';
+import { $, download, escHtml, fileBase, toast } from './ui';
 
 const STORE_KEY = 'mcm.current.v1';
 const LIB_KEY = 'mcm.library.v1';
@@ -229,8 +230,49 @@ function setProp<T>(obj: T, key: keyof T, value: unknown): void {
   (obj as Record<keyof T, unknown>)[key] = value;
 }
 
-function fieldRow<T>(field: Field<T>, obj: T, onChange: (field: Field<T>) => void): HTMLLabelElement {
-  const row = document.createElement('label');
+/**
+ * A glyph picker: a small menu of groups above a short, scrolling grid of that
+ * group's glyphs. Far easier to use than one select listing hundreds of names.
+ */
+function buildPicker(row: HTMLElement, label: string, groups: ReadonlyArray<SelectGroup>, value: string,
+  onPick: (value: string) => void): void {
+  const labelOf = (v: string): string => groups.flatMap((g) => g.options).find(([k]) => k === v)?.[1] ?? v;
+  let current = value;
+  let group = Math.max(0, groups.findIndex((g) => g.options.some(([k]) => k === value)));
+  row.innerHTML = `<span class="flabel">${escHtml(label)}<output></output></span>
+    <select class="picker-group" aria-label="${escHtml(label)} group">${groups
+      .map((g, i) => `<option value="${i}" ${i === group ? 'selected' : ''}>${escHtml(g.label)}</option>`).join('')}</select>
+    <div class="picker-grid" role="listbox" aria-label="${escHtml(label)}"></div>`;
+  const out = $<HTMLOutputElement>('output', row);
+  const grid = $<HTMLDivElement>('.picker-grid', row);
+  const fill = (): void => {
+    out.textContent = labelOf(current);
+    grid.innerHTML = (groups[group]?.options ?? []).map(([v, t]) =>
+      `<button type="button" class="picker-tile${v === current ? ' selected' : ''}" role="option" aria-selected="${v === current}" ` +
+      `data-v="${escHtml(v)}" title="${escHtml(t)}" aria-label="${escHtml(t)}">` +
+      `<svg viewBox="-1150 -1150 2300 2300" aria-hidden="true"><path d="${glyphOutline(v) ?? ''}"/></svg></button>`).join('');
+  };
+  fill();
+  grid.querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
+  $<HTMLSelectElement>('select', row).addEventListener('change', (e) => {
+    group = Number((e.target as HTMLSelectElement).value);
+    fill();
+    grid.scrollTop = 0;
+  });
+  grid.addEventListener('click', (e) => {
+    const tile = (e.target as Element).closest<HTMLButtonElement>('.picker-tile');
+    if (!tile?.dataset.v) return;
+    current = tile.dataset.v;
+    const top = grid.scrollTop;
+    fill();
+    grid.scrollTop = top;
+    onPick(current);
+  });
+}
+
+function fieldRow<T>(field: Field<T>, obj: T, onChange: (field: Field<T>) => void): HTMLElement {
+  // A picker holds several buttons, so it can't be a <label> (which forwards clicks to one control).
+  const row = document.createElement(field.type === 'picker' ? 'div' : 'label');
   row.className = 'field field-' + field.type;
   const id = `f-${String(field.key)}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -264,11 +306,20 @@ function fieldRow<T>(field: Field<T>, obj: T, onChange: (field: Field<T>) => voi
     });
   } else if (field.type === 'select') {
     const val = obj[field.key] as string;
-    row.innerHTML = `<span class="flabel">${field.label}</span><select id="${id}">${field.options
-      .map(([v, t]) => `<option value="${v}" ${v === val ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+    const opt = ([v, t]: SelectOption): string =>
+      `<option value="${escHtml(v)}" ${v === val ? 'selected' : ''}>${escHtml(t)}</option>`;
+    const options = field.options
+      .map((o) => ('options' in o ? `<optgroup label="${escHtml(o.label)}">${o.options.map(opt).join('')}</optgroup>` : opt(o)))
+      .join('');
+    row.innerHTML = `<span class="flabel">${field.label}</span><select id="${id}">${options}</select>`;
     const input = $<HTMLSelectElement>('select', row);
     input.addEventListener('change', () => {
       setProp(obj, field.key, input.value);
+      onChange(field);
+    });
+  } else if (field.type === 'picker') {
+    buildPicker(row, field.label, field.groups, obj[field.key] as string, (v) => {
+      setProp(obj, field.key, v);
       onChange(field);
     });
   } else {
